@@ -1,4 +1,4 @@
-import { Plus, Trash2, GripVertical, Upload, FileText } from "lucide-react"
+import { Plus, Trash2, GripVertical, Upload, FileText, BookmarkPlus } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
 import { useInvoice } from "../context/InvoiceContext"
 import { Button } from "./ui/button"
@@ -22,7 +22,7 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 
-function SortableLineItem({ item, updateItem, removeItem }: any) {
+function SortableLineItem({ item, updateItem, removeItem, saveItem }: any) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id })
 
@@ -75,7 +75,16 @@ function SortableLineItem({ item, updateItem, removeItem }: any) {
         <Button
           variant="ghost"
           size="icon"
-          className="text-destructive mb-[2px] self-end"
+          title="Save to Catalog"
+          className="text-emerald-600 self-end mb-[2px]"
+          onClick={() => saveItem({ description: item.description, price: item.price })}
+        >
+          <BookmarkPlus className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-destructive self-end mb-[2px]"
           onClick={() => removeItem(item.id)}
         >
           <Trash2 className="h-4 w-4" />
@@ -100,6 +109,8 @@ export default function InvoiceForm() {
     updateTax,
     importData,
     exportData,
+    saveClient,
+    saveItem,
     lastSaved
   } = useInvoice()
 
@@ -285,6 +296,21 @@ export default function InvoiceForm() {
               <option value="Mono">Monospace</option>
             </select>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="language">Language</Label>
+            <select
+              id="language"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={invoice.language}
+              onChange={(e) => updateInvoice({ language: e.target.value })}
+              aria-label="Language"
+            >
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="de">Deutsch</option>
+            </select>
+          </div>
         </CardContent>
       </Card>
 
@@ -359,8 +385,36 @@ export default function InvoiceForm() {
 
       {/* Client Details */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row justify-between sm:items-center">
           <CardTitle>Client Details</CardTitle>
+          <div className="flex gap-2">
+            {invoice.savedClients && invoice.savedClients.length > 0 && (
+              <select
+                className="flex h-9 max-w-[150px] rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const client = invoice.savedClients.find(c => c.id === e.target.value);
+                  if (client) {
+                    updateClient({ name: client.name, email: client.email, address: client.address });
+                  }
+                  e.target.value = "";
+                }}
+                aria-label="Load Saved Client"
+              >
+                <option value="">Load Client...</option>
+                {invoice.savedClients.map(c => (
+                  <option key={c.id} value={c.id}>{c.name || c.email}</option>
+                ))}
+              </select>
+            )}
+            <Button size="sm" variant="outline" onClick={() => {
+              if (invoice.client.name || invoice.client.email) {
+                saveClient({ name: invoice.client.name, email: invoice.client.email, address: invoice.client.address })
+              }
+            }} title="Save to Address Book">
+              <BookmarkPlus className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Save</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -436,6 +490,25 @@ export default function InvoiceForm() {
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle>Items</CardTitle>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            {invoice.savedItems && invoice.savedItems.length > 0 && (
+              <select
+                className="flex h-9 max-w-[150px] rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const catalogItem = invoice.savedItems.find(i => i.id === e.target.value);
+                  if (catalogItem) {
+                    updateInvoice({ items: [...invoice.items, { id: uuidv4(), description: catalogItem.description, quantity: 1, price: catalogItem.price }] });
+                  }
+                  e.target.value = "";
+                }}
+                aria-label="Load Catalog Item"
+              >
+                <option value="">Catalog...</option>
+                {invoice.savedItems.map(i => (
+                  <option key={i.id} value={i.id}>{i.description}</option>
+                ))}
+              </select>
+            )}
             <Button onClick={downloadCsvTemplate} size="sm" variant="ghost" className="text-slate-500 hidden sm:flex">
               <FileText className="h-4 w-4 mr-2" /> Template
             </Button>
@@ -480,6 +553,7 @@ export default function InvoiceForm() {
                   item={item}
                   updateItem={updateItem}
                   removeItem={removeItem}
+                  saveItem={saveItem}
                 />
               ))}
             </SortableContext>

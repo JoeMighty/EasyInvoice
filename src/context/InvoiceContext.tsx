@@ -15,6 +15,19 @@ export type Tax = {
   rate: number
 }
 
+export type SavedClient = {
+  id: string
+  name: string
+  email: string
+  address: string
+}
+
+export type SavedItem = {
+  id: string
+  description: string
+  price: number
+}
+
 export type InvoiceState = {
   business: {
     name: string
@@ -44,6 +57,9 @@ export type InvoiceState = {
   dateFormat: string
   themeColor: string
   fontFamily: string
+  language: string
+  savedClients: SavedClient[]
+  savedItems: SavedItem[]
 }
 
 const defaultState: InvoiceState = {
@@ -82,6 +98,9 @@ const defaultState: InvoiceState = {
   dateFormat: "MMM dd, yyyy",
   themeColor: "#4f46e5", // Default Indigo
   fontFamily: "Inter",
+  language: "en",
+  savedClients: [],
+  savedItems: [],
 }
 
 type InvoiceContextType = {
@@ -99,6 +118,10 @@ type InvoiceContextType = {
   updateTax: (id: string, updates: Partial<Tax>) => void
   importData: (jsonData: string) => boolean
   exportData: () => void
+  saveClient: (client: Omit<SavedClient, "id">) => void
+  deleteSavedClient: (id: string) => void
+  saveItem: (item: Omit<SavedItem, "id">) => void
+  deleteSavedItem: (id: string) => void
 }
 
 const InvoiceContext = React.createContext<InvoiceContextType | undefined>(
@@ -254,6 +277,34 @@ export function InvoiceProvider({ children }: { children: React.ReactNode }) {
     downloadAnchorNode.remove()
   }, [invoice])
 
+  const saveClient = React.useCallback((client: Omit<SavedClient, "id">) => {
+    setInvoice((prev) => ({
+      ...prev,
+      savedClients: [...(prev.savedClients || []), { ...client, id: uuidv4() }]
+    }))
+  }, [])
+
+  const deleteSavedClient = React.useCallback((id: string) => {
+    setInvoice((prev) => ({
+      ...prev,
+      savedClients: (prev.savedClients || []).filter(c => c.id !== id)
+    }))
+  }, [])
+
+  const saveItem = React.useCallback((item: Omit<SavedItem, "id">) => {
+    setInvoice((prev) => ({
+      ...prev,
+      savedItems: [...(prev.savedItems || []), { ...item, id: uuidv4() }]
+    }))
+  }, [])
+
+  const deleteSavedItem = React.useCallback((id: string) => {
+    setInvoice((prev) => ({
+      ...prev,
+      savedItems: (prev.savedItems || []).filter(i => i.id !== id)
+    }))
+  }, [])
+
   return (
     <InvoiceContext.Provider
       value={{
@@ -270,7 +321,11 @@ export function InvoiceProvider({ children }: { children: React.ReactNode }) {
         removeTax,
         updateTax,
         importData,
-        exportData
+        exportData,
+        saveClient,
+        deleteSavedClient,
+        saveItem,
+        deleteSavedItem
       }}
     >
       {children}
