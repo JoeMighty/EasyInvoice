@@ -1,4 +1,5 @@
-import { Plus, Trash2, GripVertical } from "lucide-react"
+import { Plus, Trash2, GripVertical, Upload, FileText } from "lucide-react"
+import { v4 as uuidv4 } from "uuid"
 import { useInvoice } from "../context/InvoiceContext"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
@@ -94,6 +95,12 @@ export default function InvoiceForm() {
     addItem,
     removeItem,
     updateItem,
+    addTax,
+    removeTax,
+    updateTax,
+    importData,
+    exportData,
+    lastSaved
   } = useInvoice()
 
   const sensors = useSensors(
@@ -112,21 +119,108 @@ export default function InvoiceForm() {
     }
   }
 
+  const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      if (!text) return
+      
+      const lines = text.split('\n')
+      const newItems = []
+      
+      let startIdx = 0
+      if (lines[0].toLowerCase().includes('description')) {
+        startIdx = 1
+      }
+
+      for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i].trim()
+        if (!line) continue
+        
+        // Split by comma outside quotes
+        const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+        
+        if (values.length >= 3) {
+           newItems.push({
+             id: uuidv4(),
+             description: values[0].replace(/^"|"$/g, '').trim(),
+             quantity: Number(values[1]) || 1,
+             price: Number(values[2]) || 0
+           })
+        }
+      }
+      
+      if (newItems.length > 0) {
+        const currentItems = invoice.items.length === 1 && invoice.items[0].description === '' ? [] : invoice.items
+        updateInvoice({ items: [...currentItems, ...newItems] })
+      }
+    }
+    reader.readAsText(file)
+    event.target.value = '' 
+  }
+
+  const downloadCsvTemplate = () => {
+    const content = "Description,Quantity,Price\nWeb Design Services,1,1500\nHosting (1 Year),1,120\n"
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", "invoice_items_template.csv")
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <div className="space-y-6">
       {/* Settings */}
       <Card>
-        <CardHeader>
-          <CardTitle>Invoice Settings</CardTitle>
+        <CardHeader className="flex flex-col sm:flex-row justify-between sm:items-center">
+          <div>
+            <CardTitle>Invoice Settings</CardTitle>
+            {lastSaved && <p className="text-xs text-slate-500 mt-1">Draft saved globally at {lastSaved}</p>}
+          </div>
+          <div className="flex gap-2 mt-4 sm:mt-0">
+             <div>
+              <input
+                type="file"
+                accept=".json"
+                id="json-upload"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    const reader = new FileReader()
+                    reader.onload = (e) => importData(e.target?.result as string)
+                    reader.readAsText(file)
+                  }
+                  e.target.value = ''
+                }}
+              />
+              <Label
+                htmlFor="json-upload"
+                className="flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
+                aria-label="Import Backup JSON"
+              >
+                Import
+              </Label>
+            </div>
+            <Button size="sm" variant="outline" onClick={exportData} aria-label="Export Backup JSON">Export</Button>
+          </div>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-2">
             <Label htmlFor="template">Template</Label>
             <select
               id="template"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={invoice.template}
               onChange={(e) => updateInvoice({ template: e.target.value as any })}
+              aria-label="Invoice Template"
             >
               <option value="default">Default</option>
               <option value="modern">Modern</option>
@@ -162,6 +256,33 @@ export default function InvoiceForm() {
               <option value="dd/MM/yyyy">DD/MM/YYYY</option>
               <option value="MM/dd/yyyy">MM/DD/YYYY</option>
               <option value="yyyy-MM-dd">YYYY-MM-DD</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="themeColor">Theme Color</Label>
+            <div className="flex h-10 w-full rounded-md border border-input bg-background px-1 py-1">
+              <input
+                id="themeColor"
+                type="color"
+                className="w-full h-full cursor-pointer rounded-sm border-0"
+                value={invoice.themeColor}
+                onChange={(e) => updateInvoice({ themeColor: e.target.value })}
+                aria-label="Theme Color Picker"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="fontFamily">Font Family</Label>
+            <select
+              id="fontFamily"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={invoice.fontFamily}
+              onChange={(e) => updateInvoice({ fontFamily: e.target.value })}
+              aria-label="Font Family"
+            >
+              <option value="Inter">Inter (Sans)</option>
+              <option value="Serif">Serif</option>
+              <option value="Mono">Monospace</option>
             </select>
           </div>
         </CardContent>
@@ -312,11 +433,31 @@ export default function InvoiceForm() {
 
       {/* Line Items */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle>Items</CardTitle>
-          <Button onClick={addItem} size="sm" variant="outline">
-            <Plus className="h-4 w-4 mr-2" /> Add Item
-          </Button>
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Button onClick={downloadCsvTemplate} size="sm" variant="ghost" className="text-slate-500 hidden sm:flex">
+              <FileText className="h-4 w-4 mr-2" /> Template
+            </Button>
+            <div>
+              <input
+                type="file"
+                accept=".csv"
+                id="csv-upload"
+                className="hidden"
+                onChange={handleCsvUpload}
+              />
+              <Label
+                htmlFor="csv-upload"
+                className="flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3 cursor-pointer"
+              >
+                <Upload className="h-4 w-4 mr-2" /> Import CSV
+              </Label>
+            </div>
+            <Button onClick={addItem} size="sm" variant="outline">
+              <Plus className="h-4 w-4 mr-2" /> Add Item
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 pl-8">
           <DndContext
@@ -354,26 +495,59 @@ export default function InvoiceForm() {
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="tax">Tax Rate (%)</Label>
-              <Input
-                id="tax"
-                type="number"
-                min="0"
-                step="0.1"
-                value={invoice.taxRate}
-                onChange={(e) => updateInvoice({ taxRate: Number(e.target.value) })}
-              />
+              <Label>Taxes</Label>
+              {invoice.taxes.map(tax => (
+                 <div key={tax.id} className="flex gap-2 items-center">
+                   <Input 
+                      value={tax.name} 
+                      onChange={(e) => updateTax(tax.id, { name: e.target.value })} 
+                      placeholder="Tax Name"
+                      aria-label="Tax Name" 
+                   />
+                   <div className="relative w-24">
+                     <Input 
+                        type="number" 
+                        min="0"
+                        step="0.1"
+                        value={tax.rate} 
+                        onChange={(e) => updateTax(tax.id, { rate: Number(e.target.value) })} 
+                        aria-label="Tax Rate Percentage" 
+                        className="pr-6"
+                     />
+                     <span className="absolute right-2 top-2 text-slate-500 text-sm">%</span>
+                   </div>
+                   <Button variant="ghost" size="icon" onClick={() => removeTax(tax.id)} aria-label={`Remove ${tax.name}`}>
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                   </Button>
+                 </div>
+              ))}
+              <Button onClick={addTax} size="sm" variant="outline" aria-label="Add Tax">
+                <Plus className="h-4 w-4 mr-2" /> Add Tax
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="discount">Discount Amount</Label>
-              <Input
-                id="discount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={invoice.discount}
-                onChange={(e) => updateInvoice({ discount: Number(e.target.value) })}
-              />
+            <div className="space-y-2 pt-4 border-t">
+              <Label htmlFor="discount">Discount</Label>
+              <div className="flex gap-2">
+                <select 
+                  className="flex h-10 w-28 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={invoice.discount.type}
+                  onChange={(e) => updateInvoice({ discount: { ...invoice.discount, type: e.target.value as "fixed"|"percentage" } })}
+                  aria-label="Discount Type"
+                >
+                  <option value="fixed">Flat ($)</option>
+                  <option value="percentage">Percent (%)</option>
+                </select>
+                <Input
+                  id="discount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={invoice.discount.amount}
+                  onChange={(e) => updateInvoice({ discount: { ...invoice.discount, amount: Number(e.target.value) } })}
+                  placeholder="0.00"
+                  aria-label="Discount Amount"
+                />
+              </div>
             </div>
           </div>
           <div className="space-y-2">

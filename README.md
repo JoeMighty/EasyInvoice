@@ -8,10 +8,12 @@
   </p>
 
   <p align="center">
-    <a href="https://github.com/JoeMighty/EasyInvoice/stargazers"><img src="https://img.shields.io/github/stars/JoeMighty/EasyInvoice" alt="Stars Badge"/></a>
-    <a href="https://github.com/JoeMighty/EasyInvoice/network/members"><img src="https://img.shields.io/github/forks/JoeMighty/EasyInvoice" alt="Forks Badge"/></a>
-    <a href="https://github.com/JoeMighty/EasyInvoice/issues"><img src="https://img.shields.io/github/issues/JoeMighty/EasyInvoice" alt="Issues Badge"/></a>
-    <a href="https://github.com/JoeMighty/EasyInvoice/blob/main/LICENSE"><img src="https://img.shields.io/github/license/JoeMighty/EasyInvoice?color=blue" alt="License Badge"/></a>
+    <a href="https://JoeMighty.github.io/EasyInvoice/"><img src="https://img.shields.io/badge/Live-EasyInvoice-F97316?style=flat-square" alt="Live Demo"/></a>
+    <img src="https://img.shields.io/badge/React_18-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React 18"/>
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript"/>
+    <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite"/>
+    <img src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS"/>
+    <img src="https://img.shields.io/badge/GitHub_Pages-222222?style=flat-square&logo=github&logoColor=white" alt="GitHub Pages"/>
   </p>
 
   <p align="center">

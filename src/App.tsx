@@ -12,9 +12,9 @@ export default function App() {
   const { theme, setTheme } = useTheme()
 
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 flex flex-col font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b border-white/20 dark:border-white/10 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl shadow-sm">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary tracking-tight">
             <FileText className="h-6 w-6" />

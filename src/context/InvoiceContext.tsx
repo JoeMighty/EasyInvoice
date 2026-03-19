@@ -9,6 +9,12 @@ export type LineItem = {
   price: number
 }
 
+export type Tax = {
+  id: string
+  name: string
+  rate: number
+}
+
 export type InvoiceState = {
   business: {
     name: string
@@ -27,12 +33,17 @@ export type InvoiceState = {
     dueDate: string
   }
   items: LineItem[]
-  taxRate: number
-  discount: number
+  taxes: Tax[]
+  discount: {
+    type: "fixed" | "percentage"
+    amount: number
+  }
   notes: string
   currency: string
   template: "default" | "modern" | "classic"
   dateFormat: string
+  themeColor: string
+  fontFamily: string
 }
 
 const defaultState: InvoiceState = {
@@ -60,16 +71,22 @@ const defaultState: InvoiceState = {
       price: 0,
     },
   ],
-  taxRate: 0,
-  discount: 0,
+  taxes: [],
+  discount: {
+    type: "fixed",
+    amount: 0,
+  },
   notes: "",
   currency: "USD",
   template: "default",
   dateFormat: "MMM dd, yyyy",
+  themeColor: "#4f46e5", // Default Indigo
+  fontFamily: "Inter",
 }
 
 type InvoiceContextType = {
   invoice: InvoiceState
+  lastSaved: string | null
   updateInvoice: (updates: Partial<InvoiceState>) => void
   updateBusiness: (updates: Partial<InvoiceState["business"]>) => void
   updateClient: (updates: Partial<InvoiceState["client"]>) => void
@@ -77,6 +94,11 @@ type InvoiceContextType = {
   addItem: () => void
   removeItem: (id: string) => void
   updateItem: (id: string, updates: Partial<LineItem>) => void
+  addTax: () => void
+  removeTax: (id: string) => void
+  updateTax: (id: string, updates: Partial<Tax>) => void
+  importData: (jsonData: string) => boolean
+  exportData: () => void
 }
 
 const InvoiceContext = React.createContext<InvoiceContextType | undefined>(
@@ -86,12 +108,22 @@ const InvoiceContext = React.createContext<InvoiceContextType | undefined>(
 const STORAGE_KEY = "easyinvoice-data"
 
 export function InvoiceProvider({ children }: { children: React.ReactNode }) {
+  const [lastSaved, setLastSaved] = React.useState<string | null>(null)
+
   const [invoice, setInvoice] = React.useState<InvoiceState>(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
-        return { ...defaultState, ...parsed } // Merge with default state to handle new keys when loading old data
+        // Migration from V2 to V3
+        if (typeof parsed.taxRate === "number") {
+          parsed.taxes = parsed.taxRate > 0 ? [{ id: uuidv4(), name: "Tax", rate: parsed.taxRate }] : []
+          delete parsed.taxRate
+        }
+        if (typeof parsed.discount === "number") {
+          parsed.discount = { type: "fixed", amount: parsed.discount }
+        }
+        return { ...defaultState, ...parsed, business: { ...defaultState.business, ...parsed.business }, client: { ...defaultState.client, ...parsed.client }, details: { ...defaultState.details, ...parsed.details } }
       } catch (e) {
         console.error("Failed to parse invoice state from local storage", e)
       }
@@ -103,6 +135,7 @@ export function InvoiceProvider({ children }: { children: React.ReactNode }) {
     const consent = localStorage.getItem("cookie-consent")
     if (consent === "true") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(invoice))
+      setLastSaved(new Date().toLocaleTimeString())
     }
   }, [invoice])
 
@@ -168,11 +201,64 @@ export function InvoiceProvider({ children }: { children: React.ReactNode }) {
     },
     []
   )
+  
+  const addTax = React.useCallback(() => {
+    setInvoice((prev) => ({
+      ...prev,
+      taxes: [
+        ...prev.taxes,
+        { id: uuidv4(), name: "Tax", rate: 0 },
+      ],
+    }))
+  }, [])
+
+  const removeTax = React.useCallback((id: string) => {
+    setInvoice((prev) => ({
+      ...prev,
+      taxes: prev.taxes.filter((t) => t.id !== id),
+    }))
+  }, [])
+
+  const updateTax = React.useCallback(
+    (id: string, updates: Partial<Tax>) => {
+      setInvoice((prev) => ({
+        ...prev,
+        taxes: prev.taxes.map((t) =>
+          t.id === id ? { ...t, ...updates } : t
+        ),
+      }))
+    },
+    []
+  )
+
+  const importData = React.useCallback((jsonData: string) => {
+    try {
+      const parsed = JSON.parse(jsonData)
+      if (parsed && parsed.business && parsed.client) {
+        setInvoice({ ...defaultState, ...parsed })
+        return true
+      }
+      return false
+    } catch (e) {
+      return false
+    }
+  }, [])
+
+  const exportData = React.useCallback(() => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(invoice))
+    const downloadAnchorNode = document.createElement('a')
+    downloadAnchorNode.setAttribute("href", dataStr)
+    downloadAnchorNode.setAttribute("download", `easyinvoice_backup_${new Date().toISOString().split('T')[0]}.json`)
+    document.body.appendChild(downloadAnchorNode)
+    downloadAnchorNode.click()
+    downloadAnchorNode.remove()
+  }, [invoice])
 
   return (
     <InvoiceContext.Provider
       value={{
         invoice,
+        lastSaved,
         updateInvoice,
         updateBusiness,
         updateClient,
@@ -180,6 +266,11 @@ export function InvoiceProvider({ children }: { children: React.ReactNode }) {
         addItem,
         removeItem,
         updateItem,
+        addTax,
+        removeTax,
+        updateTax,
+        importData,
+        exportData
       }}
     >
       {children}

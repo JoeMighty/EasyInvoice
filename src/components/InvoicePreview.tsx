@@ -6,6 +6,17 @@ import { format } from "date-fns"
 import { useInvoice } from "../context/InvoiceContext"
 import { Button } from "./ui/button"
 
+function getContrastColor(hexColor: string) {
+  if (!hexColor) return "#ffffff"
+  const hex = hexColor.replace('#', '')
+  if (hex.length !== 6) return "#ffffff"
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000
+  return (yiq >= 128) ? "#0f172a" : "#ffffff"
+}
+
 export default function InvoicePreview() {
   const { invoice } = useInvoice()
   const printRef = useRef<HTMLDivElement>(null)
@@ -15,8 +26,19 @@ export default function InvoicePreview() {
     (sum, item) => sum + item.quantity * item.price,
     0
   )
-  const taxAmount = subtotal * (invoice.taxRate / 100)
-  const total = subtotal + taxAmount - invoice.discount
+
+  const getTaxAmount = (rate: number) => subtotal * (rate / 100)
+  
+  const totalTaxAmount = invoice.taxes.reduce(
+    (sum, tax) => sum + getTaxAmount(tax.rate),
+    0
+  )
+
+  const discountAmount = invoice.discount.type === "percentage" 
+    ? subtotal * (invoice.discount.amount / 100)
+    : invoice.discount.amount
+
+  const total = subtotal + totalTaxAmount - discountAmount
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -93,14 +115,14 @@ export default function InvoicePreview() {
   const isModern = invoice.template === "modern"
   const isClassic = invoice.template === "classic"
 
-  const containerClass = `min-w-[600px] bg-white text-slate-800 space-y-8 ${
-    isModern ? "p-0" : "p-8"
+  const containerClass = `w-full max-w-[800px] mx-auto bg-white text-slate-800 space-y-4 sm:space-y-8 ${
+    isModern ? "p-0" : "p-4 sm:p-8"
   }`
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center z-10 sticky top-[72px] bg-muted/95 backdrop-blur py-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:static sm:bg-transparent md:py-0 mb-2 border-b sm:border-b-0 shadow-sm sm:shadow-none">
-        <h2 className="text-2xl font-semibold tracking-tight hidden sm:block">Preview</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center z-10 sticky top-16 sm:top-[72px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-md py-4 px-4 sm:px-0 sm:static sm:bg-transparent rounded-lg sm:rounded-none mb-4 shadow-sm sm:shadow-none border sm:border-0">
+        <h2 className="text-xl sm:text-2xl font-semibold tracking-tight mb-4 sm:mb-0">Preview</h2>
         <div className="flex gap-2 w-full sm:w-auto justify-end">
           <Button variant="outline" onClick={handleShare}>
             <Share className="mr-2 h-4 w-4" />
@@ -118,37 +140,43 @@ export default function InvoicePreview() {
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm ring-1 ring-border/50">
-        <div className="overflow-x-auto p-4 md:p-8">
+        <div className="p-2 sm:p-4 md:p-8 overflow-hidden">
           <div
             ref={printRef}
             className={containerClass}
-            style={{ minHeight: "800px", fontFamily: isClassic ? "serif" : "inherit" }}
+            style={{ 
+              minHeight: "800px", 
+              fontFamily: invoice.fontFamily === "Serif" ? "serif" : invoice.fontFamily === "Mono" ? "monospace" : "inherit"
+            }}
           >
             {/* Header Section */}
-            <div className={`${isModern ? "bg-slate-900 text-white p-8" : "pb-8 border-b border-slate-200"} flex justify-between items-start`}>
+            <div 
+              className={`${isModern ? "p-4 sm:p-8" : "pb-6 sm:pb-8 border-b border-slate-200"} flex flex-col sm:flex-row justify-between items-start gap-6 sm:gap-0 transition-colors`}
+              style={isModern ? { backgroundColor: invoice.themeColor, color: getContrastColor(invoice.themeColor) } : {}}
+            >
               <div className="space-y-4">
                 {invoice.business.logo && (
                   <img src={invoice.business.logo} alt="Business Logo" className="max-h-20 object-contain" />
                 )}
                 <div className="space-y-1">
-                  <h1 className={`text-4xl font-bold tracking-tight ${isModern ? "text-white" : "text-slate-900"}`}>
+                  <h1 className={`text-4xl font-bold tracking-tight ${isModern ? "text-inherit" : "text-slate-900"}`}>
                     INVOICE
                   </h1>
-                  <p className={`text-sm font-medium ${isModern ? "text-slate-300" : "text-slate-500"}`}>
+                  <p className={`text-sm font-medium ${isModern ? "opacity-80" : "text-slate-500"}`}>
                     #{invoice.details.invoiceNumber || "INV-000"}
                   </p>
                 </div>
               </div>
 
               <div className="text-right space-y-1">
-                <h3 className={`font-semibold text-lg ${isModern ? "text-white" : "text-slate-900"}`}>
+                <h3 className={`font-semibold text-lg ${isModern ? "text-inherit" : "text-slate-900"}`}>
                   {invoice.business.name || "Business Name"}
                 </h3>
                 {invoice.business.email && (
-                  <p className={`text-sm ${isModern ? "text-slate-300" : "text-slate-500"}`}>{invoice.business.email}</p>
+                  <p className={`text-sm ${isModern ? "opacity-80" : "text-slate-500"}`}>{invoice.business.email}</p>
                 )}
                 {invoice.business.address && (
-                  <p className={`text-sm whitespace-pre-wrap ${isModern ? "text-slate-300" : "text-slate-500"}`}>
+                  <p className={`text-sm whitespace-pre-wrap ${isModern ? "opacity-80" : "text-slate-500"}`}>
                     {invoice.business.address}
                   </p>
                 )}
@@ -156,7 +184,7 @@ export default function InvoicePreview() {
             </div>
 
             {/* Dates & Client */}
-            <div className={`flex justify-between items-start ${isModern ? "px-8 py-4" : "py-4"}`}>
+            <div className={`flex flex-col sm:flex-row justify-between items-start gap-6 sm:gap-0 ${isModern ? "px-4 sm:px-8 py-4" : "py-4"}`}>
               <div className="space-y-4">
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
@@ -195,20 +223,20 @@ export default function InvoicePreview() {
             </div>
 
             {/* Table */}
-            <div className={`${isModern ? "px-8" : "py-4"}`}>
-              <table className="w-full text-left text-sm border-collapse">
+            <div className={`${isModern ? "px-4 sm:px-8" : "py-4"}`}>
+              <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>
                   <tr className={`${isClassic ? "border-y-2 border-slate-800" : "border-y border-slate-200"} text-slate-500 bg-slate-50`}>
-                    <th className="py-3 px-4 font-semibold uppercase tracking-wider w-1/2">
+                    <th className="py-2 sm:py-3 px-2 sm:px-4 font-semibold uppercase tracking-wider w-1/2">
                       Description
                     </th>
-                    <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right">
+                    <th className="py-2 sm:py-3 px-2 sm:px-4 font-semibold uppercase tracking-wider text-right">
                       Rate
                     </th>
-                    <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right text-nowrap">
+                    <th className="py-2 sm:py-3 px-2 sm:px-4 font-semibold uppercase tracking-wider text-right">
                       Qty
                     </th>
-                    <th className="py-3 px-4 font-semibold uppercase tracking-wider text-right text-nowrap">
+                    <th className="py-2 sm:py-3 px-2 sm:px-4 font-semibold uppercase tracking-wider text-right">
                       Amount
                     </th>
                   </tr>
@@ -216,16 +244,16 @@ export default function InvoicePreview() {
                 <tbody className={`${isClassic ? "divide-y divide-slate-800/10" : "divide-y divide-slate-200"}`}>
                   {invoice.items.map((item) => (
                     <tr key={item.id} className="group hover:bg-slate-50">
-                      <td className="py-4 px-4 font-medium text-slate-900 break-words">
+                      <td className="py-3 sm:py-4 px-2 sm:px-4 font-medium text-slate-900 break-words">
                         {item.description || "Item description"}
                       </td>
-                      <td className="py-4 px-4 text-right text-slate-600">
+                      <td className="py-3 sm:py-4 px-2 sm:px-4 text-right text-slate-600">
                         {formatCurrency(item.price)}
                       </td>
-                      <td className="py-4 px-4 text-right text-slate-600">
+                      <td className="py-3 sm:py-4 px-2 sm:px-4 text-right text-slate-600">
                         {item.quantity}
                       </td>
-                      <td className="py-4 px-4 text-right font-medium text-slate-900">
+                      <td className="py-3 sm:py-4 px-2 sm:px-4 text-right font-medium text-slate-900">
                         {formatCurrency(item.quantity * item.price)}
                       </td>
                     </tr>
@@ -245,27 +273,32 @@ export default function InvoicePreview() {
             </div>
 
             {/* Totals */}
-            <div className={`flex justify-end pt-4 ${isModern ? "px-8" : ""}`}>
-              <div className="w-full max-w-sm space-y-3 text-sm">
+            <div className={`flex justify-end pt-4 sm:pt-6 ${isModern ? "px-4 sm:px-8" : ""}`}>
+              <div className="w-full sm:max-w-xs space-y-2 sm:space-y-3 text-xs sm:text-sm">
                 <div className="flex justify-between text-slate-600 px-4">
                   <span>Subtotal</span>
                   <span className="font-medium">{formatCurrency(subtotal)}</span>
                 </div>
-                {invoice.taxRate > 0 && (
-                  <div className="flex justify-between text-slate-600 px-4">
-                    <span>Tax ({invoice.taxRate}%)</span>
-                    <span className="font-medium">{formatCurrency(taxAmount)}</span>
-                  </div>
-                )}
-                {invoice.discount > 0 && (
+                {invoice.taxes.map(tax => (
+                  tax.rate > 0 && (
+                    <div key={tax.id} className="flex justify-between text-slate-600 px-4">
+                      <span>{tax.name} ({tax.rate}%)</span>
+                      <span className="font-medium">{formatCurrency(getTaxAmount(tax.rate))}</span>
+                    </div>
+                  )
+                ))}
+                {invoice.discount.amount > 0 && (
                   <div className="flex justify-between text-emerald-600 px-4">
-                    <span>Discount</span>
+                    <span>Discount {invoice.discount.type === "percentage" ? `(${invoice.discount.amount}%)` : ""}</span>
                     <span className="font-medium">
-                      -{formatCurrency(invoice.discount)}
+                      -{formatCurrency(discountAmount)}
                     </span>
                   </div>
                 )}
-                <div className={`flex justify-between ${isClassic ? "border-t-2 border-slate-800" : "border-t border-slate-200 bg-slate-50"} pt-3 pb-3 px-4 text-base font-bold text-slate-900`}>
+                <div 
+                  className={`flex justify-between ${isClassic ? "border-t-2 border-slate-800" : "border-t border-slate-200 bg-slate-50"} pt-3 pb-3 px-4 text-base font-bold transition-colors`}
+                  style={isModern ? { backgroundColor: invoice.themeColor, color: getContrastColor(invoice.themeColor) } : { color: isClassic ? "inherit" : invoice.themeColor }}
+                >
                   <span>Total Due</span>
                   <span>{formatCurrency(total)}</span>
                 </div>
@@ -274,7 +307,7 @@ export default function InvoicePreview() {
 
             {/* Notes */}
             {invoice.notes && (
-              <div className={`pt-8 mt-8 border-t border-slate-100 ${isModern ? "px-8 pb-8" : ""}`}>
+              <div className={`pt-6 sm:pt-8 mt-6 sm:mt-8 border-t border-slate-100 ${isModern ? "px-4 sm:px-8 pb-4 sm:pb-8" : ""}`}>
                 <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">
                   Notes
                 </p>
