@@ -1,6 +1,23 @@
-# EasyInvoice
+<div align="center">
+  <h1 align="center">EasyInvoice</h1>
 
-EasyInvoice is a fast, minimal, single-page React web application that allows users to generate and download professional invoices as PDFs without authentication.
+  <p align="center">
+    A fast, minimal, single-page React web application for generating and downloading professional invoices.
+    <br />
+    <br />
+  </p>
+
+  <p align="center">
+    <a href="https://github.com/JoeMighty/EasyInvoice/stargazers"><img src="https://img.shields.io/github/stars/JoeMighty/EasyInvoice" alt="Stars Badge"/></a>
+    <a href="https://github.com/JoeMighty/EasyInvoice/network/members"><img src="https://img.shields.io/github/forks/JoeMighty/EasyInvoice" alt="Forks Badge"/></a>
+    <a href="https://github.com/JoeMighty/EasyInvoice/issues"><img src="https://img.shields.io/github/issues/JoeMighty/EasyInvoice" alt="Issues Badge"/></a>
+    <a href="https://github.com/JoeMighty/EasyInvoice/blob/main/LICENSE"><img src="https://img.shields.io/github/license/JoeMighty/EasyInvoice?color=blue" alt="License Badge"/></a>
+  </p>
+
+  <p align="center">
+    <a href="https://JoeMighty.github.io/EasyInvoice/"><strong>View Live Demo »</strong></a>
+  </p>
+</div>
 
 ## Features
 

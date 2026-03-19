@@ -1,9 +1,88 @@
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Trash2, GripVertical } from "lucide-react"
 import { useInvoice } from "../context/InvoiceContext"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+
+function SortableLineItem({ item, updateItem, removeItem }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex flex-col sm:flex-row gap-4 items-start sm:items-end border-b pb-4 last:border-0 last:pb-0 relative group bg-background"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-50 hover:opacity-100 cursor-grab active:cursor-grabbing p-1"
+      >
+        <GripVertical className="h-4 w-4 text-slate-400" />
+      </div>
+      <div className="space-y-2 flex-grow w-full pl-2 sm:pl-0">
+        <Label className="sm:hidden">Description</Label>
+        <Input
+          placeholder="Item description"
+          value={item.description}
+          onChange={(e) => updateItem(item.id, { description: e.target.value })}
+        />
+      </div>
+      <div className="flex gap-4 w-full sm:w-auto">
+        <div className="space-y-2 w-24">
+          <Label className="sm:hidden">Qty</Label>
+          <Input
+            type="number"
+            min="1"
+            value={item.quantity}
+            onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })}
+          />
+        </div>
+        <div className="space-y-2 w-32">
+          <Label className="sm:hidden">Price</Label>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={item.price}
+            onChange={(e) => updateItem(item.id, { price: Number(e.target.value) })}
+          />
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-destructive mb-[2px] self-end"
+          onClick={() => removeItem(item.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 export default function InvoiceForm() {
   const {
@@ -17,6 +96,22 @@ export default function InvoiceForm() {
     updateItem,
   } = useInvoice()
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  function handleDragEnd(event: any) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = invoice.items.findIndex((i) => i.id === active.id)
+      const newIndex = invoice.items.findIndex((i) => i.id === over.id)
+      updateInvoice({ items: arrayMove(invoice.items, oldIndex, newIndex) })
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Settings */}
@@ -24,7 +119,7 @@ export default function InvoiceForm() {
         <CardHeader>
           <CardTitle>Invoice Settings</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="template">Template</Label>
             <select
@@ -55,6 +150,20 @@ export default function InvoiceForm() {
               <option value="JPY">JPY (¥)</option>
             </select>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="dateFormat">Date Format</Label>
+            <select
+              id="dateFormat"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={invoice.dateFormat}
+              onChange={(e) => updateInvoice({ dateFormat: e.target.value })}
+            >
+              <option value="MMM dd, yyyy">Jan 01, 2024</option>
+              <option value="dd/MM/yyyy">DD/MM/YYYY</option>
+              <option value="MM/dd/yyyy">MM/DD/YYYY</option>
+              <option value="yyyy-MM-dd">YYYY-MM-DD</option>
+            </select>
+          </div>
         </CardContent>
       </Card>
 
@@ -64,6 +173,36 @@ export default function InvoiceForm() {
           <CardTitle>Business Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="b-logo">Business Logo</Label>
+            <Input
+              id="b-logo"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  const reader = new FileReader()
+                  reader.onloadend = () => {
+                    updateBusiness({ logo: reader.result as string })
+                  }
+                  reader.readAsDataURL(file)
+                } else {
+                  updateBusiness({ logo: null })
+                }
+              }}
+            />
+            {invoice.business.logo && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => updateBusiness({ logo: null })}
+                className="mt-2 text-red-500"
+              >
+                Remove Logo
+              </Button>
+            )}
+          </div>
           <div className="space-y-2">
             <Label htmlFor="b-name">Business Name</Label>
             <Input
@@ -179,49 +318,31 @@ export default function InvoiceForm() {
             <Plus className="h-4 w-4 mr-2" /> Add Item
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {invoice.items.map((item) => (
-            <div key={item.id} className="flex flex-col sm:flex-row gap-4 items-start sm:items-end border-b pb-4 last:border-0 last:pb-0">
-              <div className="space-y-2 flex-grow w-full">
-                <Label className="sm:hidden">Description</Label>
-                <Input
-                  placeholder="Item description"
-                  value={item.description}
-                  onChange={(e) => updateItem(item.id, { description: e.target.value })}
+        <CardContent className="space-y-4 pl-8">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={invoice.items.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4 hidden sm:flex font-medium text-sm text-slate-500 pb-2 border-b">
+                <div className="flex-grow">Description</div>
+                <div className="w-24 shrink-0">Quantity</div>
+                <div className="w-32 shrink-0 pr-12">Price</div>
+              </div>
+              {invoice.items.map((item) => (
+                <SortableLineItem
+                  key={item.id}
+                  item={item}
+                  updateItem={updateItem}
+                  removeItem={removeItem}
                 />
-              </div>
-              <div className="flex gap-4 w-full sm:w-auto">
-                <div className="space-y-2 w-24">
-                  <Label className="sm:hidden">Qty</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateItem(item.id, { quantity: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2 w-32">
-                  <Label className="sm:hidden">Price</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.price}
-                    onChange={(e) => updateItem(item.id, { price: Number(e.target.value) })}
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive mb-[2px] self-end"
-                  onClick={() => removeItem(item.id)}
-                  disabled={invoice.items.length === 1}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
+              ))}
+            </SortableContext>
+          </DndContext>
         </CardContent>
       </Card>
 
@@ -244,7 +365,7 @@ export default function InvoiceForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="discount">Discount ($)</Label>
+              <Label htmlFor="discount">Discount Amount</Label>
               <Input
                 id="discount"
                 type="number"

@@ -1,7 +1,8 @@
 import { useRef, useState } from "react"
-import { Download, Loader2 } from "lucide-react"
+import { Download, Loader2, Share } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
+import { format } from "date-fns"
 import { useInvoice } from "../context/InvoiceContext"
 import { Button } from "./ui/button"
 
@@ -24,24 +25,36 @@ export default function InvoicePreview() {
     }).format(amount)
   }
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A"
+    try {
+      // Create date without timezone adjustment issues by using split
+      const [year, month, day] = dateString.split("-").map(Number)
+      if (!year || !month || !day) return dateString
+      // month is 0-indexed in Date constructor
+      const date = new Date(year, month - 1, day)
+      return format(date, invoice.dateFormat || "MMM dd, yyyy")
+    } catch {
+      return dateString
+    }
+  }
+
   const handleDownloadPdf = async () => {
     if (!printRef.current) return
 
     try {
       setIsGenerating(true)
       
-      // Temporarily set precise width for A4 proportion rendering
       const element = printRef.current
       const originalStyle = element.getAttribute("style") || ""
       element.setAttribute("style", `${originalStyle}; width: 800px; padding: 40px;`)
 
       const canvas = await html2canvas(element, {
-        scale: 2, // Higher resolution
+        scale: 2,
         useCORS: true,
         logging: false,
       })
 
-      // Restore original style
       element.setAttribute("style", originalStyle)
 
       const imgData = canvas.toDataURL("image/png")
@@ -59,7 +72,24 @@ export default function InvoicePreview() {
     }
   }
 
-  // Template styles logic
+  const handleShare = async () => {
+    const title = `Invoice ${invoice.details.invoiceNumber || ""}`.trim()
+    const text = `Please find attached the invoice ${invoice.details.invoiceNumber || ""} from ${invoice.business.name || "us"}.`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          text,
+        })
+      } catch (err) {
+        console.error("Share failed:", err)
+      }
+    } else {
+      window.open(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(text)}`)
+    }
+  }
+
   const isModern = invoice.template === "modern"
   const isClassic = invoice.template === "classic"
 
@@ -69,16 +99,22 @@ export default function InvoicePreview() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold tracking-tight">Preview</h2>
-        <Button onClick={handleDownloadPdf} disabled={isGenerating}>
-          {isGenerating ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="mr-2 h-4 w-4" />
-          )}
-          Download PDF
-        </Button>
+      <div className="flex justify-between items-center z-10 sticky top-[72px] bg-muted/95 backdrop-blur py-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:static sm:bg-transparent md:py-0 mb-2 border-b sm:border-b-0 shadow-sm sm:shadow-none">
+        <h2 className="text-2xl font-semibold tracking-tight hidden sm:block">Preview</h2>
+        <div className="flex gap-2 w-full sm:w-auto justify-end">
+          <Button variant="outline" onClick={handleShare}>
+            <Share className="mr-2 h-4 w-4" />
+            Share
+          </Button>
+          <Button onClick={handleDownloadPdf} disabled={isGenerating}>
+            {isGenerating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            PDF
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-white shadow-sm ring-1 ring-border/50">
@@ -90,13 +126,18 @@ export default function InvoicePreview() {
           >
             {/* Header Section */}
             <div className={`${isModern ? "bg-slate-900 text-white p-8" : "pb-8 border-b border-slate-200"} flex justify-between items-start`}>
-              <div className="space-y-1">
-                <h1 className={`text-4xl font-bold tracking-tight ${isModern ? "text-white" : "text-slate-900"}`}>
-                  INVOICE
-                </h1>
-                <p className={`text-sm font-medium ${isModern ? "text-slate-300" : "text-slate-500"}`}>
-                  #{invoice.details.invoiceNumber || "INV-000"}
-                </p>
+              <div className="space-y-4">
+                {invoice.business.logo && (
+                  <img src={invoice.business.logo} alt="Business Logo" className="max-h-20 object-contain" />
+                )}
+                <div className="space-y-1">
+                  <h1 className={`text-4xl font-bold tracking-tight ${isModern ? "text-white" : "text-slate-900"}`}>
+                    INVOICE
+                  </h1>
+                  <p className={`text-sm font-medium ${isModern ? "text-slate-300" : "text-slate-500"}`}>
+                    #{invoice.details.invoiceNumber || "INV-000"}
+                  </p>
+                </div>
               </div>
 
               <div className="text-right space-y-1">
@@ -141,13 +182,13 @@ export default function InvoicePreview() {
                 <div>
                   <p className="font-medium text-slate-500">Date Issued</p>
                   <p className="font-semibold text-slate-900">
-                    {invoice.details.issueDate || "N/A"}
+                    {formatDate(invoice.details.issueDate)}
                   </p>
                 </div>
                 <div>
                   <p className="font-medium text-slate-500">Due Date</p>
                   <p className="font-semibold text-slate-900">
-                    {invoice.details.dueDate || "N/A"}
+                    {formatDate(invoice.details.dueDate)}
                   </p>
                 </div>
               </div>

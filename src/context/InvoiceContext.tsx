@@ -32,6 +32,7 @@ export type InvoiceState = {
   notes: string
   currency: string
   template: "default" | "modern" | "classic"
+  dateFormat: string
 }
 
 const defaultState: InvoiceState = {
@@ -64,6 +65,7 @@ const defaultState: InvoiceState = {
   notes: "",
   currency: "USD",
   template: "default",
+  dateFormat: "MMM dd, yyyy",
 }
 
 type InvoiceContextType = {
@@ -98,7 +100,10 @@ export function InvoiceProvider({ children }: { children: React.ReactNode }) {
   })
 
   React.useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(invoice))
+    const consent = localStorage.getItem("cookie-consent")
+    if (consent === "true") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(invoice))
+    }
   }, [invoice])
 
   const updateInvoice = React.useCallback(
