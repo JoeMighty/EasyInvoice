@@ -52,21 +52,7 @@ This project uses:
    ```
 3. Open `http://localhost:5173` in your browser.
 
-## Deploying to GitHub Pages
 
-This app is configured to be deployed easily to GitHub Pages.
-
-1. **Verify Base URL**: In `vite.config.ts`, ensure `base: "/EasyInvoice/"` matches your GitHub repository name. If your repository is named something else, update it accordingly. If you are deploying to a user site (e.g., `username.github.io`), change it to `base: "/"`.
-2. **Commit and Push**: Push your code to your GitHub repository.
-3. **GitHub Actions Deployment**:
-   You can set up a GitHub Action to deploy automatically. Navigate to the **Settings** > **Pages** tab of your GitHub repository.
-   Under **Build and deployment**, select **GitHub Actions** as the Source.
-   Choose the **Static HTML** template or create a workflow using peace iris or standard Vite GitHub Pages templates.
-
-Alternatively, use the `gh-pages` package:
-1. `npm install -D gh-pages`
-2. Add to `package.json` scripts: `"deploy": "npm run build && gh-pages -d dist"`
-3. Run `npm run deploy`.
 
 ## Credits
 
