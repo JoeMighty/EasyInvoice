@@ -4,7 +4,7 @@
   <p align="center">
     A fast, minimal, single-page React web application for generating and downloading professional invoices.
     <br />
-    <br />
+    
   </p>
 
   <p align="center">
